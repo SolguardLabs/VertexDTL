@@ -1,0 +1,85 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Vertex DTL: direct",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "vertex_dtl"
+                ],
+                "filter": {
+                    "name": "vertex_dtl",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "direct"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Vertex DTL: routed",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "vertex_dtl"
+                ],
+                "filter": {
+                    "name": "vertex_dtl",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "routed"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Vertex DTL: batch",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "vertex_dtl"
+                ],
+                "filter": {
+                    "name": "vertex_dtl",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "batch"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Vertex DTL: snapshot",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin",
+                    "vertex_dtl"
+                ],
+                "filter": {
+                    "name": "vertex_dtl",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "snapshot"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
