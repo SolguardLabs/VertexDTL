@@ -1,5 +1,7 @@
 # Vertex DTL
 
+![banner](./assets/banner.png)
+
 Vertex DTL es un motor de liquidacion determinista escrito en Rust para flujos
 de pago diferido entre cuentas autenticadas. El protocolo modela tickets
 firmados, rutas de ejecucion, cargos operativos y liberaciones autorizadas sobre
