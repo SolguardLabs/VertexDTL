@@ -15,8 +15,8 @@ pub use ids::{AccountId, AssetId, Digest, TicketId, TxId};
 pub use ledger::{AccountState, JournalEntry, JournalOp, TicketState, VertexLedger};
 pub use runtime::ScenarioReport;
 pub use settlement::{
-    ReleaseAuthorizationView, ReleaseRequest, RoutePlan, RoutePolicy, SignedRelease, SignedTicket,
-    TicketAuthorizationView, TicketTerms,
+    ReleaseAuthorizationView, ReleaseRequest, RouteAllocation, RoutePlan, RoutePolicy,
+    SignedRelease, SignedTicket, TicketAuthorizationView, TicketTerms,
 };
 
 fn main() {

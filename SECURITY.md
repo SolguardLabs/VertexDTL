@@ -40,6 +40,20 @@ El protocolo asume que:
 - Los reportes JSON se tratan como salida de verificacion, no como fuente
   externa de verdad.
 
+```mermaid
+flowchart TD
+    T[Ticket recibido] --> I{Identidad y firma}
+    I -->|válidas| N{Nonce, activo y saldo}
+    N -->|válidos| R{Ruta y política}
+    R -->|válidas| B[Bloquear importe]
+    B --> L{Liberación firmada}
+    L -->|válida| C[Distribución y conservación]
+    I -->|no| X[Rechazo]
+    N -->|no| X
+    R -->|no| X
+    L -->|no| X
+```
+
 ## Controles implementados
 
 ### Firmas y dominios
@@ -122,6 +136,10 @@ mantenedor antes de cualquier divulgacion publica. Un reporte util debe incluir:
 
 No se deben publicar pruebas de concepto, trazas completas ni datos que permitan
 reproducir un impacto economico sin coordinacion previa.
+
+Utilice **Report a vulnerability** de GitHub si está habilitado; en caso
+contrario, contacte a los mantenedores por un canal privado. No incluya claves
+ni datos de terceros. No se prometen plazos o recompensas no publicados.
 
 ## Criterios de severidad
 

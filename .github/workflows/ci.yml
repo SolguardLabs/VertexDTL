@@ -6,6 +6,9 @@ on:
     branches:
       - main
       - master
+      - production
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:

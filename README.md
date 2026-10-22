@@ -1,6 +1,6 @@
 # Vertex DTL
 
-![banner](./assets/banner.png)
+![VertexDTL — Solguard Labs](./assets/banner.png)
 
 Vertex DTL es un motor de liquidacion determinista escrito en Rust para flujos
 de pago diferido entre cuentas autenticadas. El protocolo modela tickets
@@ -10,6 +10,20 @@ un ledger local con conservacion de suministro.
 El proyecto esta pensado como una implementacion compacta de referencia para
 validar reglas de liquidacion, serializacion canonica y consistencia de estado
 en entornos de integracion Web3.
+
+```mermaid
+sequenceDiagram
+    participant P as Pagador
+    participant L as Ledger
+    participant B as Beneficiario
+    participant R as Ruta
+    P->>L: TicketTerms + firma
+    L->>L: valida identidad, nonce y saldo
+    L->>L: bloquea el importe
+    B->>L: ReleaseRequest + firma
+    L->>R: distribuye beneficiario, operador y rebate
+    L->>L: verifica conservación y digest
+```
 
 ## Caracteristicas principales
 
@@ -35,6 +49,7 @@ El codigo esta organizado por dominios funcionales:
   digests.
 - `src/ledger`: estado contable, journal, cuentas y transiciones de tickets.
 - `src/settlement`: terminos de tickets, politicas de ruta y liberaciones.
+- `RouteAllocation`: cotizacion de la distribucion de una ruta concreta sin mutar el ledger.
 - `src/runtime`: CLI y escenarios reproducibles.
 
 ## Flujo de liquidacion
@@ -51,6 +66,12 @@ El codigo esta organizado por dominios funcionales:
    conservacion de suministro.
 7. La liquidacion acredita beneficiario, operador y receptor de rebate segun el
    plan de ruta.
+
+Para un ticket de 1.000 unidades con 9 de cargo operativo y 3 de rebate, la
+distribucion es 988 al beneficiario, 9 al receptor del cargo y 3 al receptor
+del rebate. `RouteAllocation::recomposed_total` confirma 988 + 9 + 3 = 1.000.
+La cotizacion es una lectura; la aceptacion final depende del estado, firmas,
+nonces y reglas del ledger.
 
 ## Escenarios disponibles
 
@@ -130,6 +151,13 @@ Actions semanalmente.
 
 ## Estado del proyecto
 
-Vertex DTL es una implementacion de referencia y no debe tratarse como
-infraestructura lista para produccion sin revision independiente, modelado
-formal de invariantes y auditoria externa completa.
+El release identifica codigo reproducible y sus controles de CI. No implica
+despliegue en una red externa, custodia de fondos ni auditoria independiente.
+
+## Documentacion
+
+- [Arquitectura y flujo de estados](./docs/arquitectura.md)
+- [Modelo economico](./docs/modelo-economico.md)
+- [Integracion y CLI](./docs/integracion.md)
+- [Operacion y controles](./docs/operacion.md)
+- [Politica de seguridad](./SECURITY.md)
