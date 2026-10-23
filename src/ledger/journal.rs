@@ -19,6 +19,7 @@ pub enum JournalOp {
         beneficiary_amount: Amount,
         operator: AccountId,
         operator_amount: Amount,
+        congestion_surcharge: Amount,
         rebate_recipient: AccountId,
         rebate_amount: Amount,
     },

@@ -8,17 +8,23 @@ pub struct RouteAllocation {
     pub gross: Amount,
     pub beneficiary: Amount,
     pub operator_fee: Amount,
+    pub congestion_surcharge: Amount,
     pub rebate: Amount,
 }
 
 impl RouteAllocation {
     pub fn from_plan(gross: Amount, plan: RoutePlan) -> VertexResult<Self> {
-        let charges = plan.charges()?;
+        Self::with_surcharge(gross, plan, Amount::zero())
+    }
+
+    pub fn with_surcharge(gross: Amount, plan: RoutePlan, surcharge: Amount) -> VertexResult<Self> {
+        let charges = plan.charges()?.checked_add(surcharge)?;
         let beneficiary = gross.checked_sub(charges)?;
         Ok(Self {
             gross,
             beneficiary,
             operator_fee: plan.operator_fee,
+            congestion_surcharge: surcharge,
             rebate: plan.rebate_amount,
         })
     }
@@ -26,6 +32,7 @@ impl RouteAllocation {
     pub fn recomposed_total(self) -> VertexResult<Amount> {
         self.beneficiary
             .checked_add(self.operator_fee)?
+            .checked_add(self.congestion_surcharge)?
             .checked_add(self.rebate)
     }
 }

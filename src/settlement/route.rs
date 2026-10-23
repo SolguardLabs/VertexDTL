@@ -59,13 +59,16 @@ impl RoutePlan {
             ));
         }
 
-        if self.routing_epoch >= policy.settlement_epoch {
-            let allowed = amount.checked_mul_bps(policy.max_charge_bps)?;
-            if charges > allowed {
-                return Err(VertexError::Policy(
-                    "route charges exceed policy ceiling".to_owned(),
-                ));
-            }
+        if self.routing_epoch < policy.settlement_epoch {
+            return Err(VertexError::Policy(
+                "route epoch precedes settlement policy".to_owned(),
+            ));
+        }
+        let allowed = amount.checked_mul_bps(policy.max_charge_bps)?;
+        if charges > allowed {
+            return Err(VertexError::Policy(
+                "route charges exceed policy ceiling".to_owned(),
+            ));
         }
 
         Ok(())

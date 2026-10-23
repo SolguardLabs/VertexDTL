@@ -1,4 +1,9 @@
-# Politica de seguridad
+# Política de seguridad
+
+| Versión | Estado de mantenimiento |
+| --- | --- |
+| `2.0.x` | Rama vigente |
+| `1.0.x` | Histórica; sin funciones nuevas |
 
 La seguridad de Vertex DTL se apoya en controles criptograficos, validaciones de
 dominio y comprobaciones contables deterministas. Este documento resume el
@@ -15,6 +20,7 @@ Se consideran dentro de alcance:
 - Derivacion de identificadores y digests.
 - Conservacion de suministro del ledger.
 - Reglas de ruta, comisiones y rebates.
+- Capacidad, carga y techo de cargos de los mercados por operador.
 - Escenarios reproducibles expuestos por la CLI.
 - Tests Rust y JavaScript incluidos en el repositorio.
 - Workflows de CI y configuracion de dependencias.
@@ -59,7 +65,7 @@ flowchart TD
 ### Firmas y dominios
 
 Los tickets se autorizan mediante firmas Ed25519 sobre una vista canonica de los
-terminos. Las liberaciones usan un dominio de firma separado. Esta separacion
+terminos y el plan concreto de ruta. Las liberaciones usan un dominio de firma separado. Esta separacion
 reduce el riesgo de reutilizacion de firmas entre acciones con significado
 distinto.
 
@@ -91,6 +97,15 @@ de reaplicar una transaccion ya observada se rechaza antes de persistir cambios.
 Las rutas de liquidacion declaran operador, receptores, importes asociados y un
 memo de liquidez. La liberacion comprueba que el digest observado de la ruta
 coincide con el plan registrado durante la apertura del ticket.
+Una ruta con epoch anterior a la política se rechaza; el techo de cargos
+firmado se aplica tanto en apertura como sobre la asignación completa durante
+la liquidación. Si existe un mercado configurado, capacidad y carga
+confirmada entran en el digest del estado.
+
+La configuración del mercado es una operación del plano de control del
+integrador y necesita autorización externa. `ticket_allocation` es una lectura
+temporal: el servicio debe ejecutar la liquidación contra el estado vigente y
+reconciliar por separado cargo base, recargo y rebate del journal.
 
 ## Practicas de desarrollo
 
@@ -137,7 +152,7 @@ mantenedor antes de cualquier divulgacion publica. Un reporte util debe incluir:
 No se deben publicar pruebas de concepto, trazas completas ni datos que permitan
 reproducir un impacto economico sin coordinacion previa.
 
-Utilice **Report a vulnerability** de GitHub si está habilitado; en caso
+Utilice el formulario privado de seguridad de GitHub si está habilitado; en caso
 contrario, contacte a los mantenedores por un canal privado. No incluya claves
 ni datos de terceros. No se prometen plazos o recompensas no publicados.
 
