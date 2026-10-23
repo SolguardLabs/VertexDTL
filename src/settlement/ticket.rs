@@ -5,7 +5,7 @@ use crate::{
     SignatureBytes, TicketId, TxId, VertexError, VertexResult, verify_signature,
 };
 
-pub const TICKET_DOMAIN: &str = "vertex-ticket-open-v3";
+pub const TICKET_DOMAIN: &str = "vertex-ticket-open-v4";
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct TicketTerms {
@@ -105,7 +105,7 @@ impl SignedTicket {
             });
         }
 
-        let signature = key_pair.sign(TICKET_DOMAIN, &terms.authorization_view())?;
+        let signature = key_pair.sign(TICKET_DOMAIN, &(terms.authorization_view(), route_plan))?;
         Ok(Self {
             payer,
             terms,
@@ -126,7 +126,7 @@ impl SignedTicket {
             self.payer,
             self.signature,
             TICKET_DOMAIN,
-            &self.terms.authorization_view(),
+            &(self.terms.authorization_view(), self.route_plan),
         )
     }
 

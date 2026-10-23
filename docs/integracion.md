@@ -10,4 +10,17 @@ El escenario `routed` parte de 5.000 unidades y liquida un ticket de 1.000: 4.00
 
 Para integrar firmas, el cliente debe obtener la identidad pública de una clave, construir `TicketTerms` con red, activo, beneficiario, nonce, vencimiento y política, y firmar en el dominio de apertura. El beneficiario construye `ReleaseRequest` con el digest de la ruta que acepta, su nonce y el dominio de liberación. No se deben reutilizar nonces ni asumir que una firma de liberación equivale a una firma de apertura.
 
+La firma de apertura cubre ahora el `RoutePlan` concreto además de los
+términos. Si cambian destinatarios, cargos, memo o epoch, el pagador debe
+firmar de nuevo. El servicio no debe aceptar una ruta de epoch anterior al de
+la política del ticket.
+
 `RouteAllocation::from_plan` devuelve una descomposición de importes que un cliente puede mostrar antes de ejecutar. No es un simulador completo de `open_ticket`: faltan saldo, nonces, cuentas registradas y estado de duplicados.
+
+Cuando hay mercado de capacidad configurado, la aplicación debe usar
+`VertexLedger::ticket_allocation(ticket_id)` inmediatamente antes de pedir
+la liberación. Esa vista incorpora el recargo del estado actual y el techo
+firmado; una cotización anterior puede cambiar si otro ticket consume
+capacidad. `congestion_quote(ticket_id)` ofrece además uso anterior,
+proyectado, utilización y recargo para observabilidad. La confirmación
+definitiva sigue siendo `settle_ticket`, nunca la vista de lectura.

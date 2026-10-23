@@ -2,10 +2,13 @@
 
 ![VertexDTL — Solguard Labs](./assets/banner.png)
 
+Versión vigente: `Production 2.0.0` (`v2.0.0`).
+
 Vertex DTL es un motor de liquidacion determinista escrito en Rust para flujos
 de pago diferido entre cuentas autenticadas. El protocolo modela tickets
 firmados, rutas de ejecucion, cargos operativos y liberaciones autorizadas sobre
-un ledger local con conservacion de suministro.
+un ledger local con conservacion de suministro. El mercado de capacidad de la
+ruta permite cotizar una tarifa de congestión no lineal al liquidar.
 
 El proyecto esta pensado como una implementacion compacta de referencia para
 validar reglas de liquidacion, serializacion canonica y consistencia de estado
@@ -30,12 +33,15 @@ sequenceDiagram
 - Ledger determinista con digest de estado reproducible.
 - Cuentas derivadas desde identidades publicas verificables.
 - Tickets de pago firmados por el pagador.
+- La firma del ticket vincula el plan concreto de ruta y su política.
 - Solicitudes de liberacion firmadas por el beneficiario.
 - Rutas de liquidacion con operador, receptor de comision y receptor de rebate.
 - Nonces independientes para apertura de tickets y liberaciones.
 - Deteccion de transacciones duplicadas mediante identificadores derivados.
 - Comprobacion de conservacion de suministro tras cada mutacion critica.
 - Reportes JSON estables para escenarios de integracion.
+- Mercados de capacidad por operador con contador de uso, pendiente en bps y
+  cotización de la asignación completa antes de liquidar.
 
 ## Arquitectura
 
@@ -49,6 +55,7 @@ El codigo esta organizado por dominios funcionales:
   digests.
 - `src/ledger`: estado contable, journal, cuentas y transiciones de tickets.
 - `src/settlement`: terminos de tickets, politicas de ruta y liberaciones.
+- `src/settlement/congestion`: capacidad, utilización proyectada y recargo.
 - `RouteAllocation`: cotizacion de la distribucion de una ruta concreta sin mutar el ledger.
 - `src/runtime`: CLI y escenarios reproducibles.
 
@@ -58,20 +65,46 @@ El codigo esta organizado por dominios funcionales:
    registradas.
 2. El pagador crea un `TicketTerms` con importe, beneficiario, activo, nonce y
    politica de ruta.
-3. El ticket se firma dentro del dominio `vertex-ticket-open-v3`.
+3. El ticket y su ruta concreta se firman dentro del dominio
+   `vertex-ticket-open-v4`.
 4. El ledger abre el ticket, debita al pagador y bloquea el importe.
 5. El beneficiario observa la ruta, firma un `ReleaseRequest` dentro del dominio
    `vertex-ticket-release-v3` y solicita la liquidacion.
 6. El ledger valida firmas, nonces, digest de ruta, estado del ticket y
    conservacion de suministro.
-7. La liquidacion acredita beneficiario, operador y receptor de rebate segun el
-   plan de ruta.
+7. La liquidacion cotiza también el uso de capacidad, aplica el techo de
+   cargos firmado y acredita beneficiario, operador y receptor de rebate.
 
 Para un ticket de 1.000 unidades con 9 de cargo operativo y 3 de rebate, la
 distribucion es 988 al beneficiario, 9 al receptor del cargo y 3 al receptor
 del rebate. `RouteAllocation::recomposed_total` confirma 988 + 9 + 3 = 1.000.
 La cotizacion es una lectura; la aceptacion final depende del estado, firmas,
 nonces y reglas del ledger.
+
+### Mercado de capacidad
+
+El operador puede registrar una capacidad y una pendiente de congestión en
+puntos básicos. La cotización informa carga previa, carga proyectada,
+utilización y recargo. `ticket_allocation` integra ese recargo con el cargo
+base y el rebate, y rechaza una distribución que supere el techo firmado.
+La carga se actualiza únicamente tras confirmar la liquidación. Por ejemplo,
+con capacidad de 1.000.000 unidades y pendiente máxima de 1.000 bps, dos
+tickets secuenciales de 500.000 alcanzan utilizaciones proyectadas del 50 %
+y el 100 %, respectivamente; los importes siguen conciliando con el suministro.
+
+```mermaid
+flowchart LR
+    T[Ticket firmado] --> Q[Cotización de ruta]
+    C[Capacidad y carga confirmada] --> Q
+    P[Techo de cargos firmado] --> V{Validación}
+    Q --> V
+    V -->|aceptada| B[Beneficiario neto]
+    V -->|aceptada| O[Operador: base + congestión]
+    V -->|aceptada| R[Destinatario de rebate]
+    B --> S[Conciliación]
+    O --> S
+    R --> S
+```
 
 ## Escenarios disponibles
 
@@ -160,4 +193,5 @@ despliegue en una red externa, custodia de fondos ni auditoria independiente.
 - [Modelo economico](./docs/modelo-economico.md)
 - [Integracion y CLI](./docs/integracion.md)
 - [Operacion y controles](./docs/operacion.md)
+- [Riesgo de ruta y controles](./docs/riesgos.md)
 - [Politica de seguridad](./SECURITY.md)

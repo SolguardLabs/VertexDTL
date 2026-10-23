@@ -1,6 +1,6 @@
 {
     "name": "vertex-dtl",
-    "version": "0.1.0",
+    "version": "2.0.0",
     "private": true,
     "type": "module",
     "description": "Tests de integracion en Node para el ejecutable Vertex DTL.",

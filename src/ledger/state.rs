@@ -2,8 +2,9 @@ use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
-    AccountId, AccountState, Amount, AssetId, Digest, JournalEntry, JournalOp, PublicIdentity,
-    SignedRelease, SignedTicket, TicketId, TxId, VertexError, VertexResult,
+    AccountId, AccountState, Amount, AssetId, Bps, CongestionQuote, Digest, JournalEntry,
+    JournalOp, PublicIdentity, RouteAllocation, RouteMarket, SignedRelease, SignedTicket, TicketId,
+    TxId, VertexError, VertexResult,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -23,6 +24,7 @@ pub struct VertexLedger {
     seen_transactions: BTreeSet<TxId>,
     total_supply: Amount,
     journal: Vec<JournalEntry>,
+    route_markets: BTreeMap<AccountId, RouteMarket>,
 }
 
 impl VertexLedger {
@@ -35,6 +37,7 @@ impl VertexLedger {
             seen_transactions: BTreeSet::new(),
             total_supply: Amount::zero(),
             journal: Vec::new(),
+            route_markets: BTreeMap::new(),
         }
     }
 
@@ -90,6 +93,62 @@ impl VertexLedger {
         self.total_supply
     }
 
+    pub fn configure_route_market(
+        &mut self,
+        operator: AccountId,
+        capacity: Amount,
+        slope_bps: Bps,
+    ) -> VertexResult<()> {
+        self.ensure_account(operator)?;
+        if self.route_markets.contains_key(&operator) {
+            return Err(VertexError::Policy(
+                "route market already configured".to_owned(),
+            ));
+        }
+        self.route_markets
+            .insert(operator, RouteMarket::new(capacity, slope_bps)?);
+        Ok(())
+    }
+
+    pub fn route_market(&self, operator: AccountId) -> Option<RouteMarket> {
+        self.route_markets.get(&operator).copied()
+    }
+
+    pub fn congestion_quote(&self, ticket_id: TicketId) -> VertexResult<Option<CongestionQuote>> {
+        let ticket = self.ticket(ticket_id)?;
+        if ticket.settled {
+            return Err(VertexError::TicketSettled(ticket_id));
+        }
+        self.route_markets
+            .get(&ticket.route_plan.operator)
+            .map(|market| market.quote(ticket.terms.amount))
+            .transpose()
+    }
+
+    pub fn ticket_allocation(&self, ticket_id: TicketId) -> VertexResult<RouteAllocation> {
+        let ticket = self.ticket(ticket_id)?;
+        let surcharge = self
+            .congestion_quote(ticket_id)?
+            .map(|quote| quote.surcharge)
+            .unwrap_or_else(Amount::zero);
+        let allocation =
+            RouteAllocation::with_surcharge(ticket.terms.amount, ticket.route_plan, surcharge)?;
+        let charged = allocation
+            .operator_fee
+            .checked_add(allocation.congestion_surcharge)?
+            .checked_add(allocation.rebate)?;
+        let cap = ticket
+            .terms
+            .amount
+            .checked_mul_bps(ticket.terms.route_policy.max_charge_bps)?;
+        if charged > cap {
+            return Err(VertexError::Policy(
+                "route charges exceed policy ceiling".to_owned(),
+            ));
+        }
+        Ok(allocation)
+    }
+
     pub fn ticket(&self, ticket_id: TicketId) -> VertexResult<&TicketState> {
         self.tickets
             .get(&ticket_id)
@@ -105,6 +164,7 @@ impl VertexLedger {
                 &self.accounts,
                 &self.tickets,
                 &self.seen_transactions,
+                &self.route_markets,
                 self.total_supply,
             ),
         )
@@ -255,13 +315,19 @@ impl VertexLedger {
         }
 
         let plan = ticket.route_plan;
-        let route_charges = plan.charges()?;
-        let beneficiary_amount = ticket.terms.amount.checked_sub(route_charges)?;
+        let allocation = self.ticket_allocation(ticket.id)?;
+        let beneficiary_amount = allocation.beneficiary;
+        let operator_amount = allocation
+            .operator_fee
+            .checked_add(allocation.congestion_surcharge)?;
         let rebate_recipient = plan.rebate_recipient.unwrap_or(ticket.terms.beneficiary);
 
         self.credit(ticket.terms.beneficiary, beneficiary_amount)?;
-        self.credit(plan.fee_recipient, plan.operator_fee)?;
+        self.credit(plan.fee_recipient, operator_amount)?;
         self.credit(rebate_recipient, plan.rebate_amount)?;
+        if let Some(market) = self.route_markets.get_mut(&plan.operator) {
+            market.settled = market.settled.checked_add(ticket.terms.amount)?;
+        }
 
         self.tickets
             .get_mut(&ticket.id)
@@ -281,7 +347,8 @@ impl VertexLedger {
                 beneficiary: ticket.terms.beneficiary,
                 beneficiary_amount,
                 operator: plan.fee_recipient,
-                operator_amount: plan.operator_fee,
+                operator_amount,
+                congestion_surcharge: allocation.congestion_surcharge,
                 rebate_recipient,
                 rebate_amount: plan.rebate_amount,
             },
